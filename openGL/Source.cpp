@@ -78,6 +78,7 @@ bool rightButtonPressed = false;
 
 #pragma region 機器人身體設定
 const float head_size = 1.0;
+const float body_height = 2.7;
 const float arm_thickness = 0.3;
 const float leg_thickness = 0.7;
 const float half_arm_length = 1.6;
@@ -92,7 +93,6 @@ const float initial_head_y = 2.5;
 float head_y = initial_head_y;                                         //機器人y軸位置改這
 //下面都是先初始化而已
 float body_width = 0.0;
-float body_height = 0.0;
 float bofy_depth = 0.0;
 float body_y = 0.0;
 float leg_y = 0.0;
@@ -873,7 +873,7 @@ void draw_body() {
     glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular_cyan_rubber);
     glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, shine_cyan_rubber);
     
-    body_height = 2.7;
+    
     float cube_size_d2 = body_height / 3;          //上到下用3個cube組成
     body_width = 3 * cube_size_d2;
     bofy_depth = 2 * cube_size_d2;
@@ -938,7 +938,7 @@ void draw_right_arm() {
 
     float elbow = (shoulder >= -3.0) ? -3.0 : shoulder * 1.5;
     glRotatef(elbow, 1.0, 0.0, 0.0);
-    glTranslatef(0.0, -bigarm_space_with_smallarm, 0.0);   //小臂關節點
+    glTranslatef(0.0, -bigarm_space_with_smallarm, 0.0);   //畫小臂
     for (int i = 0; i < half_arm_length / arm_thickness; i++) {
         glutSolidCube(arm_thickness);
         glTranslatef(0.0, -arm_thickness, 0.0);
@@ -965,7 +965,7 @@ void draw_left_arm(){
 
     float elbow = (shoulder <= 3.0) ? 3.0 : shoulder * 1.5;
     glRotatef(elbow, -1.0, 0.0, 0.0);
-    glTranslatef(0.0, -bigarm_space_with_smallarm, 0.0);   //小臂關節點
+    glTranslatef(0.0, -bigarm_space_with_smallarm, 0.0);   //畫小臂
     for (int i = 0; i < half_arm_length / arm_thickness; i++) {
         glutSolidCube(arm_thickness);
         glTranslatef(0.0, -arm_thickness, 0.0);
@@ -982,7 +982,7 @@ void draw_right_leg() {
     glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular_cyan_rubber);
     glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, shine_cyan_rubber);
 
-    glTranslatef(-(space_between_leg + leg_thickness), leg_y, 0.0);   //大腿關節點，固定
+    glTranslatef(-(space_between_leg + leg_thickness), leg_y, 0.0);   //大腿關節點
     glTranslatef(0.0, -leg_thickness / 2, 0.0);
     glRotatef(leg_angle, -1.0, 0.0, 0.0);
     for (int i = 0; i < half_leg_length / leg_thickness; i++) {
@@ -1032,7 +1032,7 @@ void draw_right_leg() {
     }
     
     glRotatef(calf_rorate_right, -1.0, 0.0, 0.0);
-    glTranslatef(0.0, -bigleg_space_with_smallleg, 0.0);   //小腿關節點
+    glTranslatef(0.0, -bigleg_space_with_smallleg, 0.0);   //畫小腿
     for (int i = 0; i < half_leg_length / leg_thickness; i++) {
         glutSolidCube(leg_thickness);
         glTranslatef(0.0, -leg_thickness, 0.0);
@@ -1048,7 +1048,7 @@ void draw_left_leg() {
     glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular_cyan_rubber);
     glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, shine_cyan_rubber);
 
-    glTranslatef((space_between_leg + leg_thickness), leg_y, 0.0);   //大腿關節點，固定
+    glTranslatef((space_between_leg + leg_thickness), leg_y, 0.0);   //大腿關節點
     glTranslatef(0.0, -leg_thickness / 2, 0.0);
     glRotatef(leg_angle, 1.0, 0.0, 0.0);
     for (int i = 0; i < half_leg_length / leg_thickness; i++) {
@@ -1091,7 +1091,7 @@ void draw_left_leg() {
         calf_rorate_left = 0;
     }
     glRotatef(calf_rorate_left, 1.0, 0.0, 0.0);
-    glTranslatef(0.0, -bigleg_space_with_smallleg, 0.0);   //小腿關節點
+    glTranslatef(0.0, -bigleg_space_with_smallleg, 0.0);   //畫小腿
     for (int i = 0; i < half_leg_length / leg_thickness; i++) {
         glutSolidCube(leg_thickness);
         glTranslatef(0.0, -leg_thickness, 0.0);
