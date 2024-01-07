@@ -49,12 +49,29 @@
     glutSolidTorus(0.2, 0.5, 20, 20);  
 */
 #define PI 3.14159265358979323846
-
+//////////////////////////////////////////////////////////////////////////////////////////
+//  Camera Control :   W,A,S,D  or  Draging_Left_Mouse_Left_Btn                         //
+//  Zoom In/Out : U,I  or  Mouse_Wheel                                                  //
+//  Turn On/Off Light Visualization : O                                                 //
+//  Stop : J                                                                            //
+//  Walk : K                                                                            //
+//  Run : L                                                                             //
+//  Turn On/Off Static Light : Arrow Key  or   2,8,4,6                                  //
+//  Turn On/Off Moving Light1 : Home  or  Page_Down                                     //
+//  Turn On/Off Moving Light2 : End  or  Page_Up                                        //
+//  Reset Running Speed : Insert or 0                                                   //
+//  Special : R or Enter                                                                //
+//////////////////////////////////////////////////////////////////////////////////////////
 inline float radian(float degree) {
     return (PI / 180) * degree;
 }
 
-#pragma region 球體運動
+bool leftButtonPressed = false;
+bool rightButtonPressed = false;
+bool scared_activated = false;
+float scared_waiting_time = 7000;
+
+#pragma region 球體運動(相機和動的球)
 float cameraDistance = 5.0;  // 相機與球體中心的初始距離
 float cameraAzimuth = 0.0;  // 方位角
 float cameraElevation = 0.0;  // 仰角
@@ -70,14 +87,14 @@ float light_Elevation3 = 0.0;
 float light_speed = 0.15;
 bool light_Elevation_turn2 = true;
 bool light_Elevation_turn3 = true;
-bool light_visible = true;
 
-bool leftButtonPressed = false;
-bool rightButtonPressed = false;
+GLfloat test = 3;
+GLfloat n = 0;
 #pragma endregion
 
-#pragma region 機器人身體設定
+#pragma region 機器人設定
 const float head_size = 1.0;
+const float body_height = 2.7;
 const float arm_thickness = 0.3;
 const float leg_thickness = 0.7;
 const float half_arm_length = 1.6;
@@ -92,7 +109,6 @@ const float initial_head_y = 2.5;
 float head_y = initial_head_y;                                         //機器人y軸位置改這
 //下面都是先初始化而已
 float body_width = 0.0;
-float body_height = 0.0;
 float bofy_depth = 0.0;
 float body_y = 0.0;
 float leg_y = 0.0;
@@ -111,11 +127,12 @@ const float leg_walk_max_angle = 20.0;
 const float leg_run_max_angle = 110.0;
 float shoulder = 0.0;
 float arm_walk_speed = 0.025;
-float arm_run_speed = 0.5;
+float initial_arm_run_speed = 0.5;
+float arm_run_speed = initial_arm_run_speed;
 float leg_angle = 0.0;
 float leg_walk_speed = 0.05;
-float leg_run_speed_mul = 1;
-float leg_run_speed = leg_run_speed_mul * arm_run_speed * leg_run_max_angle / arm_run_max_angle;
+float run_speed_mul = 1;
+float leg_run_speed = run_speed_mul * initial_arm_run_speed * leg_run_max_angle / arm_run_max_angle;
 bool right_leg_begin_walk = true;
 bool right_leg_begin_run = true;
 #pragma endregion
@@ -175,6 +192,7 @@ GLfloat shine_cyan_rubber[] = { 0.078125 * 128 };
 #pragma endregion
 
 #pragma region 燈光們
+bool light_visible = true;
 GLfloat light_position[] = { 1.0, 1.0, 1.0, 1.0 };
 GLfloat light_ambient[] = { 0.0, 0.0, 0.0, 1.0 };
 GLfloat light_diffuse[] = { 1.0, 1.0, 1.0, 1.0 };
@@ -387,8 +405,109 @@ void square() {
 }
 #pragma endregion
 
+#pragma region 計時器們
+void refresh_timer(int value) {
+
+    light_Elevation2 -= light_speed;
+    light_Elevation3 += light_speed;
+
+    if (walking) {
+        //身體起伏
+        if (head_y >= (initial_head_y + max_ups_and_downs_walk)) ups_and_downs_walk_speed = -abs(ups_and_downs_walk_speed);
+        else if (head_y <= (initial_head_y - max_ups_and_downs_walk)) ups_and_downs_walk_speed = abs(ups_and_downs_walk_speed);
+        head_y += ups_and_downs_walk_speed;
+        //手擺動
+        if (shoulder >= arm_walk_max_angle) arm_walk_speed = -abs(arm_walk_speed);
+        else if (shoulder <= -arm_walk_max_angle) arm_walk_speed = abs(arm_walk_speed);
+        shoulder += arm_walk_speed;
+        //腳擺動
+        if (leg_angle <= -leg_walk_max_angle) leg_walk_speed = abs(leg_walk_speed);
+        else if (leg_angle >= leg_walk_max_angle) leg_walk_speed = -abs(leg_walk_speed);
+        leg_angle += leg_walk_speed;
+    }
+    else if (running) {
+        //身體起伏
+        if (head_y >= (initial_head_y + max_ups_and_downs_run)) ups_and_downs_run_speed = -abs(ups_and_downs_run_speed);
+        else if (head_y <= (initial_head_y - max_ups_and_downs_run)) ups_and_downs_run_speed = abs(ups_and_downs_run_speed);
+        head_y += ups_and_downs_run_speed;
+        //手擺動
+        if (shoulder >= arm_run_max_angle) arm_run_speed = -abs(arm_run_speed);
+        else if (shoulder <= -arm_run_max_angle) arm_run_speed = abs(arm_run_speed);
+        shoulder += arm_run_speed;
+        //腳擺動
+        if (leg_angle <= -leg_run_max_angle) leg_run_speed = abs(leg_run_speed);
+        else if (leg_angle >= leg_run_max_angle) leg_run_speed = -abs(leg_run_speed);
+        leg_angle += leg_run_speed;
+    }
+    else {
+        shoulder = 0;
+        leg_angle = 0;
+        arm_walk_speed = abs(arm_walk_speed);
+        leg_walk_speed = abs(leg_walk_speed);
+        arm_run_speed = abs(arm_run_speed);
+        leg_run_speed = abs(leg_run_speed);
+        ups_and_downs_walk_speed = abs(ups_and_downs_walk_speed);
+        ups_and_downs_run_speed = abs(ups_and_downs_run_speed);
+    }
+
+    if (test <= 0) n = (0.7 / 1000);
+    else if (test >= 3) n = -(0.7 / 1000);
+    test += n;
+
+    glutPostRedisplay();
+    glutTimerFunc(1, refresh_timer, 0);
+}
+void jump_scare(int value) {
+    switch (value) {
+    case 0:
+        cameraDistance = 50.0;
+        cameraAzimuth = radian(180.0);
+        cameraElevation = radian(0.0);
+        glDisable(GL_LIGHT0);
+        glDisable(GL_LIGHT1);
+        glDisable(GL_LIGHT2);
+        glDisable(GL_LIGHT3);
+        glDisable(GL_LIGHT4);
+        glDisable(GL_LIGHT5);
+        walking = false;
+        running = false;
+        light_visible = false;
+        scared_activated = true;
+        run_speed_mul = 7;
+        arm_run_speed = run_speed_mul * initial_arm_run_speed;
+        leg_run_speed = run_speed_mul * initial_arm_run_speed * leg_run_max_angle / arm_run_max_angle;
+        glutTimerFunc(scared_waiting_time, jump_scare, 1);
+        break;
+    case 1:
+        running = true;
+        glEnable(GL_LIGHT1);
+        glutTimerFunc(1, jump_scare, 2);
+        break;
+    case 2:
+        cameraDistance -= 0.1;
+        if (cameraDistance > 0) glutTimerFunc(1, jump_scare, 2);
+        else glutTimerFunc(1, jump_scare, 3);
+        break;
+    case 3:
+        running = false;
+        light_visible = true;
+        scared_activated = false;
+        run_speed_mul = 1;
+        arm_run_speed = run_speed_mul * initial_arm_run_speed;
+        leg_run_speed = run_speed_mul * initial_arm_run_speed * leg_run_max_angle / arm_run_max_angle;
+        cameraDistance = 10.0;
+        cameraAzimuth = radian(180.0);
+        cameraElevation = radian(0.0);
+        break;
+    }
+
+}
+#pragma endregion
+
 #pragma region keyboard
 void keyboard(unsigned char key, int x, int y) {
+    //std::cout << key << std::endl;
+    if (scared_activated) return;
     if (key == 'e' || key == 'E') {
         exit(0);
     }
@@ -430,10 +549,13 @@ void keyboard(unsigned char key, int x, int y) {
     }
 
     if (key == '+') {
-        leg_run_speed_mul += 1;
+        run_speed_mul += 1;
     }
     else if (key == '-') {
-        leg_run_speed_mul -= 1;
+        run_speed_mul -= 1;
+    }
+    else if (key == '0') {
+        run_speed_mul = 1;
     }
 
     if (key == 'w' || key == 'W') {
@@ -457,10 +579,59 @@ void keyboard(unsigned char key, int x, int y) {
     if (key == 'o' || key == 'O') {
         light_visible = !light_visible;
     }
-    leg_run_speed_mul = fmax(leg_run_speed_mul, 1);
-    leg_run_speed = leg_run_speed_mul * arm_run_speed * leg_run_max_angle / arm_run_max_angle;
+    if (key == 'r' || key == 'R' || key ==13) {
+        glutTimerFunc(1, jump_scare, 0);
+    }
+    run_speed_mul = fmax(run_speed_mul, 1);
+    arm_run_speed = run_speed_mul * initial_arm_run_speed;
+    leg_run_speed = run_speed_mul * initial_arm_run_speed * leg_run_max_angle / arm_run_max_angle;
     cameraElevation = fminf(fmaxf(cameraElevation, radian(-89)), radian(89));
     cameraDistance = fmaxf(cameraDistance, 1);      //camera距離最近為1
+}
+#pragma endregion
+
+#pragma region special keyboard
+void handleSpecialKeys(int key, int x, int y) {
+    if (scared_activated) return;
+    switch (key) {
+    case GLUT_KEY_UP:
+        if (glIsEnabled(GL_LIGHT0)) glDisable(GL_LIGHT0);
+        else glEnable(GL_LIGHT0);
+        break;
+    case GLUT_KEY_DOWN:
+        if (glIsEnabled(GL_LIGHT1)) glDisable(GL_LIGHT1);
+        else glEnable(GL_LIGHT1);
+        break;
+    case GLUT_KEY_LEFT:
+        if (glIsEnabled(GL_LIGHT4)) glDisable(GL_LIGHT4);
+        else glEnable(GL_LIGHT4);
+        break;
+    case GLUT_KEY_RIGHT:
+        if (glIsEnabled(GL_LIGHT5)) glDisable(GL_LIGHT5);
+        else glEnable(GL_LIGHT5);
+        break;
+    case GLUT_KEY_HOME:
+        if (glIsEnabled(GL_LIGHT2)) glDisable(GL_LIGHT2);
+        else glEnable(GL_LIGHT2);
+        break;
+    case GLUT_KEY_END:
+        if (glIsEnabled(GL_LIGHT3)) glDisable(GL_LIGHT3);
+        else glEnable(GL_LIGHT3);
+        break;
+    case GLUT_KEY_PAGE_UP:
+        if (glIsEnabled(GL_LIGHT3)) glDisable(GL_LIGHT3);
+        else glEnable(GL_LIGHT3);
+        break;
+    case GLUT_KEY_PAGE_DOWN:
+        if (glIsEnabled(GL_LIGHT2)) glDisable(GL_LIGHT2);
+        else glEnable(GL_LIGHT2);
+        break;
+    case GLUT_KEY_INSERT:
+        run_speed_mul = 1;
+        break;
+    default:
+        break;
+    }
 }
 #pragma endregion
 
@@ -519,22 +690,26 @@ void menu(int value) {
         running = true;
         break;
     case 16:
-        leg_run_speed_mul += 1;
+        run_speed_mul += 1;
         break;
     case 17:
-        leg_run_speed_mul -= 1;
+        run_speed_mul -= 1;
         break;
     case 18:
-        leg_run_speed_mul = 1;
+        run_speed_mul = 1;
         break;
     case 19:
         light_visible = !light_visible;
         break;
+    case 20:
+        glutTimerFunc(1, jump_scare, 0);
+        break;
     default:
         break;
     }
-    if (leg_run_speed_mul <= 1) leg_run_speed_mul = 1;
-    leg_run_speed = leg_run_speed_mul * arm_run_speed * leg_run_max_angle / arm_run_max_angle;
+    if (run_speed_mul <= 1) run_speed_mul = 1;
+    arm_run_speed = run_speed_mul * initial_arm_run_speed;
+    leg_run_speed = run_speed_mul * initial_arm_run_speed * leg_run_max_angle / arm_run_max_angle;
 }
 void createMenu() {
     int light_switch0 = glutCreateMenu(menu);
@@ -584,13 +759,17 @@ void createMenu() {
     glutAddSubMenu("ROBOT ACTIONS", movements);
     glutAddSubMenu("RUNNING SPEED", run_speed);
     glutAddMenuEntry("VISUALIZE LIGHT", 19);
+    glutAddMenuEntry("SPECIAL", 20);
     glutAddMenuEntry("Exit", 0);
 }
 #pragma endregion
 
 #pragma region 滑鼠控制(視角)
 void mouseMotion(int x, int y) {
-
+    if (scared_activated) {
+        glutDetachMenu(GLUT_RIGHT_BUTTON);
+        return;
+    }
     int deltaX = x - lastX;
     int deltaY = y - lastY;
 
@@ -637,62 +816,6 @@ void mouseButton(int button, int state, int x, int y) {
     cameraDistance = fmaxf(cameraDistance, 1);
     lastX = x;
     lastY = y;
-    glutPostRedisplay();
-}
-#pragma endregion
-GLfloat test = 3;
-GLfloat n = 0;
-#pragma region 計時器
-void refresh_timer(int value) {
-
-    light_Elevation2 -= light_speed;
-    light_Elevation3 += light_speed;
-
-    if (walking) {
-        //身體起伏
-        if (head_y >= (initial_head_y + max_ups_and_downs_walk)) ups_and_downs_walk_speed = -abs(ups_and_downs_walk_speed);
-        else if (head_y <= (initial_head_y - max_ups_and_downs_walk)) ups_and_downs_walk_speed = abs(ups_and_downs_walk_speed);
-        head_y += ups_and_downs_walk_speed;
-        //手擺動
-        if (shoulder >= arm_walk_max_angle) arm_walk_speed = -abs(arm_walk_speed);
-        else if (shoulder <= -arm_walk_max_angle ) arm_walk_speed = abs(arm_walk_speed);
-        shoulder += arm_walk_speed;
-        //腳擺動
-        if (leg_angle <= -leg_walk_max_angle) leg_walk_speed = abs(leg_walk_speed);
-        else if(leg_angle >= leg_walk_max_angle) leg_walk_speed = -abs(leg_walk_speed);
-        leg_angle += leg_walk_speed;
-    }
-    else if (running) {
-        //身體起伏
-        if (head_y >= (initial_head_y + max_ups_and_downs_run)) ups_and_downs_run_speed = -abs(ups_and_downs_run_speed);
-        else if (head_y <= (initial_head_y - max_ups_and_downs_run)) ups_and_downs_run_speed = abs(ups_and_downs_run_speed);
-        head_y += ups_and_downs_run_speed;
-        //手擺動
-        if (shoulder >= arm_run_max_angle) arm_run_speed = -abs(arm_run_speed);
-        else if(shoulder <= -arm_run_max_angle) arm_run_speed = abs(arm_run_speed);
-        shoulder += arm_run_speed;
-        //腳擺動
-        if (leg_angle <= -leg_run_max_angle ) leg_run_speed = abs(leg_run_speed);
-        else if(leg_angle >= leg_run_max_angle) leg_run_speed = -abs(leg_run_speed);
-        leg_angle += leg_run_speed;
-    }
-    else {
-        shoulder = 0;
-        leg_angle = 0;
-        arm_walk_speed = abs(arm_walk_speed);
-        leg_walk_speed = abs(leg_walk_speed);
-        arm_run_speed = abs(arm_run_speed);
-        leg_run_speed = abs(leg_run_speed);
-        ups_and_downs_walk_speed = abs(ups_and_downs_walk_speed);
-        ups_and_downs_run_speed = abs(ups_and_downs_run_speed);
-    }
-
-    if (test <= 0) n = (0.7 / 1000);
-    else if (test >= 3) n = -(0.7 / 1000);
-    test += n;
-
-    glutPostRedisplay();
-    glutTimerFunc(1, refresh_timer, 0);
 }
 #pragma endregion
 
@@ -873,7 +996,7 @@ void draw_body() {
     glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular_cyan_rubber);
     glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, shine_cyan_rubber);
     
-    body_height = 2.7;
+    
     float cube_size_d2 = body_height / 3;          //上到下用3個cube組成
     body_width = 3 * cube_size_d2;
     bofy_depth = 2 * cube_size_d2;
@@ -938,7 +1061,7 @@ void draw_right_arm() {
 
     float elbow = (shoulder >= -3.0) ? -3.0 : shoulder * 1.5;
     glRotatef(elbow, 1.0, 0.0, 0.0);
-    glTranslatef(0.0, -bigarm_space_with_smallarm, 0.0);   //小臂關節點
+    glTranslatef(0.0, -bigarm_space_with_smallarm, 0.0);   //畫小臂
     for (int i = 0; i < half_arm_length / arm_thickness; i++) {
         glutSolidCube(arm_thickness);
         glTranslatef(0.0, -arm_thickness, 0.0);
@@ -965,7 +1088,7 @@ void draw_left_arm(){
 
     float elbow = (shoulder <= 3.0) ? 3.0 : shoulder * 1.5;
     glRotatef(elbow, -1.0, 0.0, 0.0);
-    glTranslatef(0.0, -bigarm_space_with_smallarm, 0.0);   //小臂關節點
+    glTranslatef(0.0, -bigarm_space_with_smallarm, 0.0);   //畫小臂
     for (int i = 0; i < half_arm_length / arm_thickness; i++) {
         glutSolidCube(arm_thickness);
         glTranslatef(0.0, -arm_thickness, 0.0);
@@ -982,7 +1105,7 @@ void draw_right_leg() {
     glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular_cyan_rubber);
     glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, shine_cyan_rubber);
 
-    glTranslatef(-(space_between_leg + leg_thickness), leg_y, 0.0);   //大腿關節點，固定
+    glTranslatef(-(space_between_leg + leg_thickness), leg_y, 0.0);   //大腿關節點
     glTranslatef(0.0, -leg_thickness / 2, 0.0);
     glRotatef(leg_angle, -1.0, 0.0, 0.0);
     for (int i = 0; i < half_leg_length / leg_thickness; i++) {
@@ -1032,7 +1155,7 @@ void draw_right_leg() {
     }
     
     glRotatef(calf_rorate_right, -1.0, 0.0, 0.0);
-    glTranslatef(0.0, -bigleg_space_with_smallleg, 0.0);   //小腿關節點
+    glTranslatef(0.0, -bigleg_space_with_smallleg, 0.0);   //畫小腿
     for (int i = 0; i < half_leg_length / leg_thickness; i++) {
         glutSolidCube(leg_thickness);
         glTranslatef(0.0, -leg_thickness, 0.0);
@@ -1048,7 +1171,7 @@ void draw_left_leg() {
     glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular_cyan_rubber);
     glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, shine_cyan_rubber);
 
-    glTranslatef((space_between_leg + leg_thickness), leg_y, 0.0);   //大腿關節點，固定
+    glTranslatef((space_between_leg + leg_thickness), leg_y, 0.0);   //大腿關節點
     glTranslatef(0.0, -leg_thickness / 2, 0.0);
     glRotatef(leg_angle, 1.0, 0.0, 0.0);
     for (int i = 0; i < half_leg_length / leg_thickness; i++) {
@@ -1091,7 +1214,7 @@ void draw_left_leg() {
         calf_rorate_left = 0;
     }
     glRotatef(calf_rorate_left, 1.0, 0.0, 0.0);
-    glTranslatef(0.0, -bigleg_space_with_smallleg, 0.0);   //小腿關節點
+    glTranslatef(0.0, -bigleg_space_with_smallleg, 0.0);   //畫小腿
     for (int i = 0; i < half_leg_length / leg_thickness; i++) {
         glutSolidCube(leg_thickness);
         glTranslatef(0.0, -leg_thickness, 0.0);
@@ -1327,6 +1450,7 @@ int main(int argc, char* argv[])
     glutReshapeFunc(reshape);
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
+    glutSpecialFunc(handleSpecialKeys);
     glutMotionFunc(mouseMotion);
     glutMouseFunc(mouseButton);
     createMenu();
