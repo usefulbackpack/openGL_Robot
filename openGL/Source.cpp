@@ -112,9 +112,12 @@ float body_width = 0.0;
 float bofy_depth = 0.0;
 float body_y = 0.0;
 float leg_y = 0.0;
-//走路和跑步的設定
+//走路和跑步的設定----------走路時>肩膀晃動、手擺動、腳擺動，需成正比 ， 跑步時>上下晃動、肩膀晃動、手擺動、腳擺動，需成正比
 bool walking = false;
 bool running = false;
+float lean_forward_angle = 3.0;
+float shoulder_shake_angle = 0.0;
+float shoulder_shake_angle_max = 10.0;
 float ups_and_downs_walk_speed = 0.0004;
 float ups_and_downs_run_speed = 0.004;
 float calf_rorate_right = 0.0;
@@ -133,6 +136,7 @@ float leg_angle = 0.0;
 float leg_walk_speed = 0.05;
 float run_speed_mul = 1;
 float leg_run_speed = run_speed_mul * initial_arm_run_speed * leg_run_max_angle / arm_run_max_angle;
+float shoulder_shake_speed = run_speed_mul * initial_arm_run_speed * shoulder_shake_angle_max / arm_run_max_angle;
 bool right_leg_begin_walk = true;
 bool right_leg_begin_run = true;
 #pragma endregion
@@ -426,6 +430,10 @@ void refresh_timer(int value) {
         leg_angle += leg_walk_speed;
     }
     else if (running) {
+        //肩膀搖晃
+        if (shoulder_shake_angle >= shoulder_shake_angle_max) shoulder_shake_speed = -abs(shoulder_shake_speed);
+        else if (shoulder_shake_angle <= -shoulder_shake_angle_max) shoulder_shake_speed = abs(shoulder_shake_speed);
+        shoulder_shake_angle += shoulder_shake_speed;
         //身體起伏
         if (head_y >= (initial_head_y + max_ups_and_downs_run)) ups_and_downs_run_speed = -abs(ups_and_downs_run_speed);
         else if (head_y <= (initial_head_y - max_ups_and_downs_run)) ups_and_downs_run_speed = abs(ups_and_downs_run_speed);
@@ -476,6 +484,7 @@ void jump_scare(int value) {
         run_speed_mul = 7;
         arm_run_speed = run_speed_mul * initial_arm_run_speed;
         leg_run_speed = run_speed_mul * initial_arm_run_speed * leg_run_max_angle / arm_run_max_angle;
+        shoulder_shake_speed = run_speed_mul * initial_arm_run_speed * shoulder_shake_angle_max / arm_run_max_angle;
         glutTimerFunc(scared_waiting_time, jump_scare, 1);
         break;
     case 1:
@@ -495,6 +504,7 @@ void jump_scare(int value) {
         run_speed_mul = 1;
         arm_run_speed = run_speed_mul * initial_arm_run_speed;
         leg_run_speed = run_speed_mul * initial_arm_run_speed * leg_run_max_angle / arm_run_max_angle;
+        shoulder_shake_speed = run_speed_mul * initial_arm_run_speed * shoulder_shake_angle_max / arm_run_max_angle;
         cameraDistance = 10.0;
         cameraAzimuth = radian(180.0);
         cameraElevation = radian(0.0);
@@ -585,6 +595,7 @@ void keyboard(unsigned char key, int x, int y) {
     run_speed_mul = fmax(run_speed_mul, 1);
     arm_run_speed = run_speed_mul * initial_arm_run_speed;
     leg_run_speed = run_speed_mul * initial_arm_run_speed * leg_run_max_angle / arm_run_max_angle;
+    shoulder_shake_speed = run_speed_mul * initial_arm_run_speed * shoulder_shake_angle_max / arm_run_max_angle;
     cameraElevation = fminf(fmaxf(cameraElevation, radian(-89)), radian(89));
     cameraDistance = fmaxf(cameraDistance, 1);      //camera距離最近為1
 }
@@ -710,6 +721,7 @@ void menu(int value) {
     if (run_speed_mul <= 1) run_speed_mul = 1;
     arm_run_speed = run_speed_mul * initial_arm_run_speed;
     leg_run_speed = run_speed_mul * initial_arm_run_speed * leg_run_max_angle / arm_run_max_angle;
+    shoulder_shake_speed = run_speed_mul * initial_arm_run_speed * shoulder_shake_angle_max / arm_run_max_angle;
 }
 void createMenu() {
     int light_switch0 = glutCreateMenu(menu);
@@ -908,7 +920,7 @@ void draw_face(float x_, float y_, float z_, float head_size) {
     glMaterialfv(GL_FRONT, GL_SPECULAR, specular_eye);
     glMaterialfv(GL_FRONT, GL_SHININESS, shine_no);
     glMaterialfv(GL_FRONT, GL_EMISSION, diffuse_eye_white);
-    glTranslatef(0.0, 0.0, 0.0001);
+    //glTranslatef(0.0, 0.0, 0.0001);                   //註解掉眼睛有雜訊感，i like it
     glBegin(GL_TRIANGLE_FAN);
     glVertex3f(centerX, centerY, z_);  // 圓心
     for (float angle = 0.0; angle <= 2 * PI; angle += 0.005) {
@@ -918,7 +930,7 @@ void draw_face(float x_, float y_, float z_, float head_size) {
     }
     glEnd();
     glPopAttrib();
-    glTranslatef(0.0, 0.0, -0.0001);
+    //glTranslatef(0.0, 0.0, -0.0001);                  //需跟上面同步做變動
 
     glPushAttrib(GL_ALL_ATTRIB_BITS);
     glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_eye);
@@ -942,7 +954,7 @@ void draw_face(float x_, float y_, float z_, float head_size) {
     glMaterialfv(GL_FRONT, GL_SPECULAR, specular_eye);
     glMaterialfv(GL_FRONT, GL_SHININESS, shine_no);
     glMaterialfv(GL_FRONT, GL_EMISSION, diffuse_eye_white);
-    glTranslatef(0.0, 0.0, 0.0001);
+    //glTranslatef(0.0, 0.0, 0.0001);                   //註解掉眼睛有雜訊感，i like it，這邊不用扣回去因為直接pop了
     glBegin(GL_TRIANGLE_FAN);
     glVertex3f(centerX, centerY, z_);  // 圓心
     for (float angle = 0.0; angle <= 2 * PI; angle += 0.005) {
@@ -1223,6 +1235,11 @@ void draw_left_leg() {
     glPopMatrix();
 }
 void draw_robot() {
+    if (running) {
+        glRotatef(shoulder_shake_angle, 0.0, 1.0, 0.0);                     //肩膀搖晃
+        glRotatef(lean_forward_angle, 1.0, 0.0, 0.0);      //前傾
+    }
+
     draw_head();
     body_y = head_y - head_size - body_space_with_head;
     draw_body();
