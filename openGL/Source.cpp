@@ -903,7 +903,7 @@ void draw_face(float x_, float y_, float z_, float head_size) {
     float centerX = x_ - eye_disatnce / 2.0;
     float centerY = y_ + eye_disatnce / 2.0;
     float radius = 0.1f;                                //眼睛大小
-    float eye_socket = 0.03;
+    float eye_socket = 0.01;
     glBegin(GL_TRIANGLE_FAN);
     glVertex3f(centerX, centerY, z_);  // 圓心
     for (float angle = 0.0; angle <= 2 * PI; angle += 0.005) {
